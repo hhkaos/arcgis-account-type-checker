@@ -94,7 +94,9 @@
           sessionInfo.innerHTML = "Log in to start a session.";
         }
 
-        request('https://www.arcgis.com/sharing/rest/community/self', { 
+        //request('https://www.arcgis.com/sharing/rest/community/self', { 
+        request('https://www.arcgis.com/sharing/rest/portals/self/subscriptionInfo', { 
+          
           authentication: session,
           params:{
             f: "json"
@@ -110,15 +112,28 @@
           localStorage.setItem("__ARCGIS_REST_USER_SESSION__", session.serialize());
           
 
-          if(!response.role){
+          if(!response.type){
             
             sessionInfo.innerHTML +=  `
             <p>
               <strong>Account type</strong>: <a href="https://developers.arcgis.com/documentation/glossary/arcgis-online-account/">ArcGIS Online Public account</a>. These are free entry-level account that you can use to access tools and create and share content, such as maps and scenes, designed for personal, non-commercial use. These accounts are created from <a href="https://www.arcgis.com/sharing/rest/oauth2/signup?client_id=arcgisonline&redirect_uri=http://www.arcgis.com&response_type=token">arcgis.com</a>. 
             </p>`;
           
-          }else if(response.availableCredits){
+          }else if(response.type === "Developer Subscription"){
             
+            sessionInfo.innerHTML += `
+            <p>
+              <strong>Account type</strong>: <a href="https://developers.arcgis.com/documentation/glossary/arcgis-developer-account/">ArcGIS Developer account</a>. These accounts are normally created from <a href="https://developers.arcgis.com/sign-up">developers.arcgis.com/sign-up</a> for free, but can also be acquired through developer subscriptions.
+            </p>
+            <p>
+              If it is a free account, when login to the developer dashboard you should see you account usage:
+              <div class="text-center"><img src="imgs/arcgis-platform-account.png"><br>
+              <a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/accounts/#arcgis-developer-accounts">Learn more about ArcGIS Developer accounts</a>
+                </div>
+            </p>`;
+          
+          }else{
+
             sessionInfo.innerHTML += `
             <p>
               <strong>Account type</strong>: <a href="https://www.esri.com/en-us/arcgis/products/arcgis-online/overview">ArcGIS Online organizational account</a>. These are paid accounts (<a href="https://www.esri.com/en-us/arcgis/products/arcgis-online/trial">21-day trial available</a>). They are normally created by an organization admin by selecting a <a href="https://doc.arcgis.com/en/arcgis-online/administer/roles.htm">user type, role</a>, and <a href="https://doc.arcgis.com/en/arcgis-online/administer/manage-licenses.htm">additional licenses can be assigned</a>.
@@ -130,22 +145,9 @@
 
             </p>`;
           
-          }else{
-
-            sessionInfo.innerHTML += `
-            <p>
-              <strong>Account type</strong>: free <a href="https://developers.arcgis.com/documentation/glossary/arcgis-developer-account/">ArcGIS Developer account</a> (a.k.a. ArcGIS Platform account) with a free tier of location services and with pay-as-you-go disabled by default. These accounts are created from <a href="https://developers.arcgis.com/sign-up">developers.arcgis.com/sign-up</a>.
-            </p>
-            <p>
-              When login to the developer dashboard you should see you account usage:
-              <div class="text-center"><img src="imgs/arcgis-platform-account.png"><br>
-              <a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/accounts/#arcgis-developer-accounts">Learn more about ArcGIS Developer accounts</a>
-                </div>
-            </p>`;
-          
           }
 
-          if(!response.privileges){
+          if(!response.type){
 
             sessionInfo.innerHTML += `
               <p>With an ArcGIS Online Public account you can:</p>
