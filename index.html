@@ -75,7 +75,9 @@
 
       let session = null;
       const clientId = "V1jHKAeHCRY1Q9e8";
-      const redirectUri = window.location.origin + "/authenticate.html";
+      const url = window.location.href;
+      // const redirectUri = window.location.href ;
+      const redirectUri = url.substring(0, url.lastIndexOf('/')) + "/authenticate.html";
 
       const serializedSession = localStorage.getItem("__ARCGIS_REST_USER_SESSION__"); // Check to see if there is a serialized session in local storage.
 
