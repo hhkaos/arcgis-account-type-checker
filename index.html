@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ArcGIS REST JS Browser OAuth2</title>
+
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+      integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+      crossorigin="anonymous"
+    />
+    <style>
+      body {
+        font-family: monospace;
+        color: black;
+        font-size: 20px;
+      }
+      pre {
+        overflow: auto;
+        padding: 1rem;
+      }
+
+      .col-xs-12 {
+        margin-top: 2rem;
+      }
+
+      #withPopupButton,
+      #signOutButton {
+        font-size: 20px;
+      }
+
+      #sessionInfo{
+        padding: 1rem;
+        font-size: 1.3rem;
+      }
+      #sessionInfo img{
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-wrapper">
+      <div class="container">
+        <div class="row" id="signInDiv">
+          <div class="col-xs-12">
+            <!-- Event listeners planned to be added to these buttons. -->
+            <button class="btn btn-primary btn-block" id="withPopupButton">Sign In</button>
+          </div>
+        </div>
+
+        <div class="row" id="signOutDiv" style="display: none;">
+          <div class="col-xs-12 text-center">
+            <!-- Event listeners will be added to these buttons. -->
+            <button class="btn btn-primary btn-block btn-warning" id="signOutButton">Sign Out</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-xs-12">
+            <p id="sessionInfo" class="info-panel">
+              <!-- Information will be injected here. -->
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { ArcGISIdentityManager, request } from 'https://cdn.skypack.dev/@esri/arcgis-rest-request@4.0.0';
+
+      import * as portalTools from "https://cdn.skypack.dev/@esri/arcgis-rest-portal"
+
+
+      let session = null;
+      const clientId = "V1jHKAeHCRY1Q9e8";
+      const redirectUri = window.location.origin + "/authenticate.html";
+
+      const serializedSession = localStorage.getItem("__ARCGIS_REST_USER_SESSION__"); // Check to see if there is a serialized session in local storage.
+
+      if (serializedSession !== null && serializedSession !== "undefined") {
+        session = ArcGISIdentityManager.deserialize(serializedSession);
+      }
+
+      function updateSessionInfo(session) {
+        let sessionInfo = document.getElementById("sessionInfo");
+
+        if(!session){
+          sessionInfo.classList.remove("bg-success");
+          sessionInfo.classList.add("bg-info");
+          sessionInfo.innerHTML = "Log in to start a session.";
+        }
+
+        request('https://www.arcgis.com/sharing/rest/community/self', { 
+          authentication: session,
+          params:{
+            f: "json"
+          },
+          httpMethod: "GET"
+        })
+        .then(response => {
+          
+          
+          sessionInfo.classList.remove("bg-info");
+          sessionInfo.classList.add("bg-success");
+          sessionInfo.innerHTML = `<p><strong>Logged in as</strong>: ${session.username}</p>`;
+          localStorage.setItem("__ARCGIS_REST_USER_SESSION__", session.serialize());
+          
+
+          if(!response.role){
+            
+            sessionInfo.innerHTML +=  `
+            <p>
+              <strong>Account type</strong>: <a href="https://developers.arcgis.com/documentation/glossary/arcgis-online-account/">ArcGIS Online Public account</a>. These are free entry-level account that you can use to access tools and create and share content, such as maps and scenes, designed for personal, non-commercial use. These accounts are created from <a href="https://www.arcgis.com/sharing/rest/oauth2/signup?client_id=arcgisonline&redirect_uri=http://www.arcgis.com&response_type=token">arcgis.com</a>. 
+            </p>`;
+          
+          }else if(response.availableCredits){
+            
+            sessionInfo.innerHTML += `
+            <p>
+              <strong>Account type</strong>: <a href="https://www.esri.com/en-us/arcgis/products/arcgis-online/overview">ArcGIS Online organizational account</a>. These are paid accounts (<a href="https://www.esri.com/en-us/arcgis/products/arcgis-online/trial">21-day trial available</a>). They are normally created by an organization admin by selecting a <a href="https://doc.arcgis.com/en/arcgis-online/administer/roles.htm">user type, role</a>, and <a href="https://doc.arcgis.com/en/arcgis-online/administer/manage-licenses.htm">additional licenses can be assigned</a>.
+            </p>
+            <p>
+              When login to arcgis.com you should be able to check you user type, role, and <a href="https://doc.arcgis.com/en/arcgis-online/administer/credits.htm">credit usage</a>. From the developer dashboard you will be able to access SDKs downloads among other things. It should look like this:<br>
+              <img src="imgs/arcgis-online-account.png"><br/>
+              <a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/accounts/#arcgis-public-accounts">Learn more about ArcGIS Online accounts</a>
+
+            </p>`;
+          
+          }else{
+
+            sessionInfo.innerHTML += `
+            <p>
+              <strong>Account type</strong>: free <a href="https://developers.arcgis.com/documentation/glossary/arcgis-developer-account/">ArcGIS Developer account</a> (a.k.a. ArcGIS Platform account) with a free tier of location services and with pay-as-you-go disabled by default. These accounts are created from <a href="https://developers.arcgis.com/sign-up">developers.arcgis.com/sign-up</a>.
+            </p>
+            <p>
+              When login to the developer dashboard you should see you account usage:
+              <div class="text-center"><img src="imgs/arcgis-platform-account.png"><br>
+              <a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/accounts/#arcgis-developer-accounts">Learn more about ArcGIS Developer accounts</a>
+                </div>
+            </p>`;
+          
+          }
+
+          if(!response.privileges){
+
+            sessionInfo.innerHTML += `
+              <p>With an ArcGIS Online Public account you can:</p>
+              <ul>
+                <li>Access ArcGIS online to <a href="https://doc.arcgis.com/en/arcgis-online/administer/manage-items.htm">manage and share content</a> with others. Limitations: 
+                  <ul> 
+                    <li>Create items by uploading static files.</li>
+                    <li>Create items that references KML, OGC WFS, OGC WMS, OGC WMTS, GeoJSON, and ArcGIS Server web services.</li>
+                  </ul>
+                </li>
+                <li>Access some tools: 
+                  <ul>
+                    <li><a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/tools/mapviewer/">Map Viewer</a> to create, store, and manage web maps (2D maps).</li>
+                    <li><a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/tools/sceneviewer/">Scene viewer</a> to create, store, and manage web scenes (3D maps).</li>
+                    <li><a href="https://storymaps.arcgis.com/stories/cea22a609a1d4cccb8d54c650b595bc4">Create story maps</a>.</li>
+                    <li><a href="https://www.esri.com/en-us/arcgis/products/arcgis-instant-apps/overview">ArcGIS Instant Apps</a> and <a href="https://doc.arcgis.com/en/arcgis-online/create-maps/choose-configurable-app.htm">ArcGIS Configurable Apps templates</a> to quickly create web apps that make it easy to interact with your maps and data.</li>
+                  </ul>
+                </li>
+                <li>Use terabytes of content from:
+                  <ul>
+                    <li><a href="https://livingatlas.arcgis.com/en/home/">ArcGIS Living Atlas of the World</a> to create your maps. This is authoritative content shared by Esri and GIS users.</li>
+                    <li>+150k layers of Open data content from <a href="https://hub.arcgis.com/search">ArcGIS Hub</a>.</li>
+                  </ul>
+                </li>
+              </ul>
+
+              <p>ArcGIS public accounts can be converted for free to <a href="https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/accounts/#arcgis-developer-accounts">ArcGIS Developer accounts</a> from <a href="https://developers.arcgis.com/dashboard/">developers.arcgis.com/dashboard/</a>. These accounts have extra priviledges and can be used for commercial use.</p>
+
+              <p>
+                When login to the developer dashboard you should see something like this:<br>
+                <img src="imgs/arcgis-online-public-account.png">
+              </p>
+            `;
+          }else{
+            
+            sessionInfo.innerHTML += `
+            <p><strong>Role</strong>: ${response.role}</p>
+
+            <p><strong>Priviledges (<a href="https://developers.arcgis.com/rest/users-groups-and-items/privileges.htm">learn more about these priviledges</a>)</strong>:
+              
+              
+              </p>
+              <ul>
+                ${response.privileges.reduce((acc, val) => { return `${acc}<li>${val}</li>`}, "")}
+                </ul>
+                `;
+                // debugger
+          }
+          // updateSessionInfo(session)
+        }) 
+        
+      }
+
+      updateSessionInfo(session);
+      updateUI();
+
+      document.getElementById("withPopupButton").addEventListener("click", (event) => {
+        // Begin an OAuth2 login using a popup.
+        ArcGISIdentityManager.beginOAuth2({
+          clientId: clientId,
+          redirectUri: redirectUri,
+          popup: true
+        })
+          .then((newSession) => {
+            // Upon a successful login, update the session with the new session.
+            session = newSession;
+            console.log(session);
+            updateUI();
+            updateSessionInfo(session);
+            
+          })
+          .catch((error) => {
+            console.log(error);
+          });
+        event.preventDefault();
+      });
+
+      document.getElementById("signOutButton").addEventListener("click", (event) => {
+        event.preventDefault();
+        // call the signOut method to invalidate the token.
+        session.signOut().then(()=>{
+          session = null; // Clear the session from memory.
+          localStorage.removeItem("__ARCGIS_REST_USER_SESSION__");
+          updateSessionInfo();
+          updateUI();
+        });
+      });
+
+      function updateUI(){
+        document.querySelector('#signOutDiv').style.display = session? "block" : "none";
+        document.querySelector('#signInDiv').style.display = !session? "block" : "none";
+      }
+      // portalTools.getSelf().then((res)=>{
+      //   debugger
+      // })
+
+      // function updateAccountDetails(session){
+      //   // debugger
+        
+      // }
+
+      if(session){
+        updateSessionInfo(session)
+        // console.log(session)
+        // https://www.arcgis.com/sharing/rest/portals/self?token={{access_token}}&f=json
+        // debugger
+       
+        
+
+//         request('https://www.arcgis.com/sharing/rest/search', {
+//   params: { q: 'parks' },
+//   httpMethod: "GET"
+// })
+//   .then(response =>{
+//     debugger
+//   })
+      }else{
+        console.log("No")
+        
+      }
+
+    </script>
+
+  </body>
+</html>
+
+
